@@ -16,7 +16,7 @@ Baichuan2-Novel 是一个开源的网文大语言模型，本项目的目的是�
 - 开源小说预训练数据集，指令微调数据集
 
 ## 整体架构
-
+我将我在做小说训练过程中用到的代码全都开放出来了，主要包括以下几个部分：
 - Baichuan-Pretrain: 预训练的详细代码
 - Baichuan-Finetune： 全参数微调的详细代码
 - Baichuan-Finetune-Lora：基于 lora 进行微调的详细代码
