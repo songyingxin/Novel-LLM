@@ -23,7 +23,7 @@ Baichuan2-Novel 是一个开源的网文大语言模型，本项目的目的是�
 - Baichuan-Finetune-QLora：基于 qlora 进行微调的详细代码
 - README.md：项目的详细说明
 - requirements.txt：所需包安装
-- web_demo.py： 运行 web 界面进行交互
+- web_demo.py： 运行 web 界面进行交互，非多轮
 
 ## 模型评估
 
