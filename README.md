@@ -17,12 +17,12 @@ Baichuan2-Novel 是一个开源的网文大语言模型，本项目的目的是�
 
 ## 整体架构
 
-- Baichuan-Pretrain: 包含了预训练的详细代码
+- Baichuan-Pretrain: 预训练的详细代码
 - Baichuan-Finetune： 全参数微调的详细代码
 - Baichuan-Finetune-Lora：基于 lora 进行微调的详细代码
 - Baichuan-Finetune-QLora：基于 qlora 进行微调的详细代码
-- README.md：项目的详细说明
-- requirements.txt：所需包安装
+- Baichuan-Embedding：获得文本的向量并存储到本地
+- Baichuan-Anysis：对模型，数据的分析代码，比如文本长度等
 - web_demo.py： 运行 web 界面进行交互，非多轮
 
 ## 模型评估
@@ -59,6 +59,7 @@ pip install -r requirements.txt
 
 ## 模型微调
 微调数据是精选出 30 本小说，采用的是用小说的上一章节来预测下一章节。
+此外，为了更验证代码的可靠性，提供了论文标题生成摘要指令数据集，推荐先试用论文摘要数据集进行训练，然后对小说感兴趣再研究小说任务。
 
 ### 1. 全参数微调
 
