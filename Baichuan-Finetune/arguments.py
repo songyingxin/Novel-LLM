@@ -23,7 +23,7 @@ class PathArguments:
         metadata={"help": ("验证集数据")},
     )
     output_dir: Optional[str] = field(
-        default="/data/lipengwei/songyingxin/output_finetune",
+        default="./output_finetune",
         metadata={"help": "模型输出文件夹路径"},
     )
     output_model_name: Optional[str] = field(
@@ -31,7 +31,7 @@ class PathArguments:
         metadata={"help": "控制日志和输出路径"},
     )
     logging_dir: Optional[str] = field(
-        default="../log_finetune",
+        default="./log_finetune",
         metadata={"help": "日志输出文件夹路径"},
     )
 

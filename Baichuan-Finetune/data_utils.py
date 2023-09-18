@@ -48,7 +48,6 @@ class GPTDataset(Dataset):
 
         attention_mask = input_ids.ne(self.tokenizer.pad_token_id)
 
-        
         return {
             "input_ids": input_ids,
             "labels": label_ids,
