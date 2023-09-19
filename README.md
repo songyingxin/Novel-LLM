@@ -74,16 +74,16 @@ Baichuan2-Novel 的评估主要分为两种：
 |  微调方式    | loss | rouge-1 | rouge-2 | rouge-l
 | --- | --- | --- | --- | --- |
 | baichuan1 全参量微调 | 2.29 | 33.31% | 9.57% | 21.18% |
-| baichuan1 lora 微调 | 2.27 | | | |
+| baichuan1 lora 微调 | 2.27 | 33.75% |8.72% | 19.84% |
 | baichuan1 qlora 微调 |  | | | |
 | baichuan2 全参量微调 | 5.80 | 34.81% | 9.54% | 20.58% |
-| baichuan2 lora 微调 | 2.62 | | | |
+| baichuan2 lora 微调 | 2.62 | 33.18% | 9.5% | 20.79%|
 | baichuan2 qlora 微调 |  | | | |
 
 整体效果来看，有以下结论：
 - baichuan1 和 baichuan2 微调后的效果差不多，需要注意的是，baichuan2 的损失一直在往上走，可能是baichuan 2 训练比较充分，后面会多进行几次实验。
 - lora 微调和全参数微调效果差不多，可以用lora快速验证效果，但是推理速度，lora较慢，效果验证后依旧推荐全参数微调。
--
+
 
 ### 1. 全参数微调
 
