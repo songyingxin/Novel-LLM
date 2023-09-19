@@ -38,7 +38,7 @@ pip install -r requirements.txt
 | Baichuan-Novel-base  | |
 | Baichuan-Novel-chat  | |
 
-Baichuan2-Novel 的评估主要分为两种： 
+Baichuan-Novel 的评估主要分为两种： 
 - 第一种是直接用两本没参与训练的书来计算 Rouge 分
 - 第二种是采用人工评估的方式来从多个角度进行评估（待完善）。
 
