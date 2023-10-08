@@ -8,12 +8,13 @@
 
 ## 项目简介
 Novel-GPT 是一个开源的网文大语言模型，本项目的目的是基于现有的开源大模型 Baichuan,qwen 来进行领域预训练，后续如果有更好的基座会进行切换。
-经过多次实验，当前效果来看，qwen是目前最好的开源基座，后面整体会全部切换到qwen。
+
+经过多次实验，当前效果来看，**qwen是目前最好的开源基座**，后面整体会全部切换到qwen。
 
 本项目依托于网文数据，主要进行以下几个方面的工作：
 - 基于论文摘要数据的微调，原因在于小说任务难以评测，用论文摘要任务来验证代码以及模型能力
 - 基于网文数据进行领域 Pretain
-- 支持主流的开源大模型，如 [qwen](), [baichuan1](https://github.com/baichuan-inc/Baichuan-7B), [baichuan2](https://github.com/baichuan-inc/Baichuan2),
+- 支持主流的开源大模型，如 [qwen](https://github.com/QwenLM/Qwen), [baichuan1](https://github.com/baichuan-inc/Baichuan-7B), [baichuan2](https://github.com/baichuan-inc/Baichuan2),
 - 模型架构优化：采用向量融入的方式，针对小说场景下的生成问题进行模型结构优化，致力于解决小说超长文本问题。 -- 核心改进，待开源
 - 开源小说预训练数据集，论文摘要数据集
 
