@@ -1,140 +1,137 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+
 import os
-import sys
+import json
+import torch
+import jieba
+
+from tqdm import tqdm
 import numpy as np
 
-from datasets import load_dataset
 from rouge_chinese import Rouge
 
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
-from transformers import (
-    Seq2SeqTrainingArguments, 
-    DataCollatorForSeq2Seq,
-    set_seed,
-    HfArgumentParser
-)
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, HfArgumentParser
+from transformers.generation.utils import GenerationConfig
 
-from peft import LoraConfig, TaskType, get_peft_model
+from dataclasses import dataclass, field
+from typing import Optional
 
-from arguments import PathArguments, TrainerArguments
-from data_utils import GPTDataset, sequential_dataloader
-from metrics import compute_metrics_predict
 
-from transformers import Seq2SeqTrainer
+
+@dataclass
+class PathArguments:
+    """
+    Arguments pertaining to which model/config/tokenizer we are going to fine-tune from.
+    """
+
+    model_path: str = field(
+        default="",
+        metadata={"help": "lora 模型的路径"}
+    )
+
+    base_model_path: str = field(
+        default="",
+        metadata={"help": "基座模型的路径"}
+    )
+
+    test_file: Optional[str] = field(
+        default="", 
+        metadata={"help": "测试集数据"}
+    )
+    output_dir: Optional[str] = field(
+        default="./result/",
+        metadata={"help": "输出文件夹"},
+    )
+
 
 def main():
 
-    peft_config = LoraConfig(
-        task_type=TaskType.CAUSAL_LM,
-        target_modules=["W_pack"],
-        inference_mode=False,
-        r=1,
-        lora_alpha=32,
-        lora_dropout=0.1,
-    )
-    # 参数设置
-    parser = HfArgumentParser((PathArguments, TrainerArguments))
-    path_args, train_args = parser.parse_args_into_dataclasses()
-    path_args.output_dir = os.path.join(path_args.output_dir, path_args.output_model_name)
-    path_args.logging_dir = os.path.join(path_args.logging_dir, path_args.output_model_name)
+    parser = HfArgumentParser(PathArguments)
+    path_args = parser.parse_args_into_dataclasses()[0]
 
-    training_args = Seq2SeqTrainingArguments(
-        do_train=True,
-        do_eval=True,
-        output_dir=path_args.output_dir,
-        logging_dir=path_args.logging_dir,
-        evaluation_strategy="steps",
-        learning_rate=train_args.learning_rate,
-        per_device_train_batch_size=train_args.per_device_train_batch_size,
-        per_device_eval_batch_size=train_args.per_device_eval_batch_size,
-        gradient_accumulation_steps=train_args.gradient_accumulation_steps,
-        num_train_epochs=train_args.num_train_epochs,
-        eval_steps=train_args.save_step,
-        save_steps=train_args.save_step,
-        logging_steps=train_args.save_step,
-        seed=train_args.seed,
-        save_total_limit=1,
-        overwrite_output_dir=True,
-        deepspeed=train_args.deepspeed,
-        local_rank=train_args.local_rank,
-        bf16=True
-    )
+    rouge = Rouge()
 
-    print("Process rank: {}; device: {}; n_gpu: {}".format(training_args.local_rank, training_args.device, training_args.n_gpu))
+    # 保存所有的分值
+    score_dict = {
+        "rouge-1-p": [],
+        "rouge-1-r": [],
+        "rouge-1-f": [],
+        "rouge-2-p": [],
+        "rouge-2-r": [],
+        "rouge-2-f": [],
+        "rouge-l-p": [],
+        "rouge-l-r": [],
+        "rouge-l-f": []
+    }
 
-    # 设置随机种子
-    set_seed(training_args.seed)
+    base_model_dir = path_args.base_model_path
+    model_dir = path_args.model_path
+    test_file = path_args.test_file
 
-    # 加载数据
-    data_files = {}
-    if path_args.train_file is not None:
-        data_files["train"] = path_args.train_file
-    if path_args.validation_file is not None:
-        data_files["validation"] = path_args.validation_file
+    out_dir = path_args.output_dir
 
-    raw_datasets = load_dataset(
-        "json",
-        data_files=data_files
-    )
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
 
-    train_data = raw_datasets['train']
-    dev_data = raw_datasets['validation']
+    check_point_name = model_dir.split('/')[-1]
 
-    # 加载 tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(
-        path_args.model_path,
-        trust_remote_code=True
-    )
+    out_file = os.path.join(out_dir, check_point_name)
+    out_metrics_file = os.path.join(out_dir, "metrics_" + check_point_name)
 
-    # 生成 Dataset
-    train_dataset = GPTDataset(train_args, train_data, tokenizer)
-    dev_dataset = GPTDataset(train_args, dev_data, tokenizer)
+    # do predict
+    tokenizer = AutoTokenizer.from_pretrained(base_model_dir, use_fast=False, trust_remote_code=True)
 
-    # 加载模型配置
-    config = AutoConfig.from_pretrained(path_args.model_path, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(base_model_dir, device_map="auto", torch_dtype=torch.bfloat16, trust_remote_code=True)
+    model.generation_config = GenerationConfig.from_pretrained(base_model_dir)
+
+    model_lora = PeftModel.from_pretrained(
+        model,
+        model_dir
+    ).to('cuda:0')
+
+    res = []
+    with open(test_file, 'r') as f:
+        for line in tqdm(f.readlines()):
+            data = json.loads(line.strip())
+            text = data["input"]
+            label = data['label']
+
+            # 获得模型输出
+            inputs = [tokenizer.bos_token_id] + tokenizer.encode(text) + [tokenizer.eos_token_id]
+            input_ids = torch.LongTensor([inputs]).to('cuda:0')
+            outputs = model_lora.generate(input_ids, generation_config=model.generation_config)
+            response = tokenizer.decode(outputs[0][len(input_ids[0]):], skip_special_tokens=True)
+            data['response'] = response
+
+            if not response:
+                response = '空'
+            hypothesis = list(jieba.cut(response))
+            reference = list(jieba.cut(label))
+
+            # 计算rouge分
+            score = rouge.get_scores(' '.join(hypothesis) , ' '.join(reference))
+            score = score[0]
+            for key,val in score.items():
+                for sub_key, sub_val in val.items():
+                    score_dict[key+'-'+sub_key].append(sub_val)
+
+            exam = json.dumps(data, ensure_ascii=False)   
+            res.append(exam)
+
+    # 将每个指标求平均
+    for key,val in score_dict.items():
+        score_dict[key] = float(np.mean(val))
+
+    # 保存指标文件
+    with open(out_metrics_file, 'w') as f:
+        json.dump(score_dict, f)
+
+    # 保存预测文件
+    res = '\n'.join(res)
+    with open(out_file, 'w', encoding="utf-8") as f:
+        f.write(res)
     
-    # 加载模型
-    model = AutoModelForCausalLM.from_pretrained(path_args.model_path, trust_remote_code=True, config=config)
-    model = get_peft_model(model, peft_config)
-    model.print_trainable_parameters()
-
-    # Data Collator
-    label_pad_token_id = -100
-    data_collator = DataCollatorForSeq2Seq(
-        tokenizer,
-        model=model,
-        label_pad_token_id=label_pad_token_id,
-        padding=False
-    )
-
-    # Override the decoding parameters of Seq2SeqTrainer
-    training_args.generation_max_length = train_args.max_length
-
-    # 初始化 Trainer
-    trainer = Seq2SeqTrainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset,
-        eval_dataset=dev_dataset,
-        data_collator=data_collator,
-        tokenizer=tokenizer,
-        # compute_metrics=compute_metrics
-    )
-
-    # 开始训练    
-    model.gradient_checkpointing_enable()
-    model.enable_input_require_grads()
-
-    train_result = trainer.train()
-
-    # 保存模型
-    metrics = train_result.metrics
-    trainer.log_metrics("train", metrics)
-    trainer.save_metrics("train", metrics)
-    # trainer.save_state()
-    # trainer.save_model(output_dir=path_args.output_dir)
-    model.save_pretrained(path_args.output_dir)
 
 
 if __name__ == "__main__":
